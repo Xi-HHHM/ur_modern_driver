@@ -6,50 +6,81 @@
   <arg unless="$(arg debug)" name="launch_prefix" value="" />
   <arg     if="$(arg debug)" name="launch_prefix" value="gdb --ex run --args" />
 
-  <arg name="robot_ip"/>
-  <arg name="reverse_port" default="50001"/>
+  <arg name="robot_ip" default="172.20.20.10"/>
   <arg name="limited" default="false"/>
   <arg name="min_payload"  default="0.0"/>
-  <arg name="max_payload"  default="3.0"/>
+  <arg name="max_payload"  default="10.0"/>
   <arg name="prefix" default="" />
-  <arg name="max_velocity" default="10.0"/> <!-- [rad/s] -->
+  <arg name="suffix" default="" />
+  <arg name="max_velocity" default="3.14"/> <!-- [rad/s] -->
   <arg name="base_frame" default="$(arg prefix)base" />
   <arg name="tool_frame" default="$(arg prefix)tool0_controller" />
-  <arg name="shutdown_on_disconnect" default="true" />
-  <arg name="controllers" default="joint_state_controller force_torque_sensor_controller vel_based_pos_traj_controller"/>
-  <arg name="stopped_controllers" default="pos_based_pos_traj_controller joint_group_vel_controller"/>
+  <arg name="shutdown_on_disconnect" default="false" />
+  <arg name="other_controllers_to_load" default="pos_based_pos_traj_controller" />
+  <arg name="moveit" default="false"/>
+  <arg name="use_extern_force_torque_sensor" default="false"/>
+  <arg name="path_robot_description" default="$(find ur_e_description)/urdf/ur10e_robot.urdf.xacro" /> 
+  <arg name="path_robot_description_limited" default="$(find ur_e_description)/urdf/ur10e_joint_limited_robot.urdf.xacro" />
+  
   <!-- robot model -->
-  <include file="$(find ur_e_description)/launch/ur10e_upload.launch">
-    <arg name="limited" value="$(arg limited)"/>
-  </include>
+  <param unless="$(arg limited)" name="robot_description" command="$(find xacro)/xacro --inorder $(arg path_robot_description)" />
+  <param if="$(arg limited)" name="robot_description" command="$(find xacro)/xacro --inorder $(arg path_robot_description_limited)" />
 
-  <!-- Load hardware interface -->
-  <node name="ur_hardware_interface" pkg="ur_modern_driver" type="ur_driver" output="log" launch-prefix="$(arg launch_prefix)">
-    <param name="robot_ip_address" type="str" value="$(arg robot_ip)"/>
-    <param name="reverse_port" type="int" value="$(arg reverse_port)" />
-    <param name="min_payload" type="double" value="$(arg min_payload)"/>
-    <param name="max_payload" type="double" value="$(arg max_payload)"/>
-    <param name="max_velocity" type="double" value="$(arg max_velocity)"/>
-    <param name="use_ros_control" type="bool" value="True"/>
-    <param name="servoj_gain" type="double" value="750" />
-    <param name="prefix" value="$(arg prefix)" />
-    <param name="base_frame" type="str" value="$(arg base_frame)"/>
-    <param name="tool_frame" type="str" value="$(arg tool_frame)"/>
-    <param name="shutdown_on_disconnect" type="bool" value="$(arg shutdown_on_disconnect)"/>
-  </node>
+
+  <arg name="sim" default="false" />
+    <group unless="$(arg sim)">
+	  <!-- Load hardware interface -->
+	  <node name="ur_hardware_interface" pkg="ur_modern_driver" type="ur_driver" output="screen" launch-prefix="$(arg launch_prefix)">
+	    <param name="robot_ip_address" type="str" value="$(arg robot_ip)"/>
+	    <param name="min_payload" type="double" value="$(arg min_payload)"/>
+	    <param name="max_payload" type="double" value="$(arg max_payload)"/>
+	    <param name="max_velocity" type="double" value="$(arg max_velocity)"/>
+	    <param name="use_ros_control" type="bool" value="True"/>
+        <param name="use_extern_force_torque_sensor" type="bool" value="$(arg use_extern_force_torque_sensor)"/>
+	    <param name="servoj_gain" type="double" value="150" />
+        <!--param name="servoj_gain" type="double" value="0.004" /-->
+	    <param name="prefix" value="$(arg prefix)" />
+	    <param name="base_frame" type="str" value="$(arg base_frame)"/>
+	    <param name="tool_frame" type="str" value="$(arg tool_frame)"/>
+	    <param name="shutdown_on_disconnect" type="bool" value="$(arg shutdown_on_disconnect)"/>
+	  </node>
+    </group>
+    <group if="$(arg sim)">
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+      <param name="/use_gui" value="false"/>
+      <rosparam param="/source_list">[/move_group/fake_controller_joint_states]</rosparam>
+    </node>
+  </group>
 
   <!-- Load controller settings -->
   <rosparam file="$(find ur_modern_driver)/config/ur10_controllers.yaml" command="load"/>
 
   <!-- spawn controller manager -->
   <node name="ros_control_controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
-    output="screen" args="$(arg controllers)" />
+    output="screen" args="joint_state_controller force_torque_sensor_controller" />
 
-  <!-- load other controller -->
+  <!-- load other controller --> 
   <node name="ros_control_controller_manager" pkg="controller_manager" type="controller_manager" respawn="false"
-    output="screen" args="load $(arg stopped_controllers)" />
+    output="screen" args="load $(arg other_controllers_to_load)" /> 
 
   <!-- Convert joint states to /tf tranforms -->
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+
+<!--MoveIt-->
+  <arg name="moveit_config" default="ur10_e$(arg suffix)" />
+  <group if="$(arg moveit)">
+    <!-- Load the URDF, SRDF and other .yaml configuration files on the param server -->
+    <include file="$(eval find(arg('moveit_config')+'_moveit_config') + '/launch/planning_context.launch')">
+      <arg name="load_robot_description" value="false"/>
+    </include>
+    <include file="$(eval find(arg('moveit_config')+'_moveit_config') + '/launch/move_group.launch')">
+      <arg name="allow_trajectory_execution" value="true"/>
+      <arg name="fake_execution" value="false"/>
+      <arg name="info" value="true"/>
+    </include>
+    <include file="$(eval find(arg('moveit_config')+'_moveit_config') + '/launch/moveit_rviz.launch')">
+      <arg name="config" value="true"/>
+    </include>
+  </group>
 
 </launch>

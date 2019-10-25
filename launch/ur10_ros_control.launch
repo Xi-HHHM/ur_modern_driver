@@ -2,11 +2,12 @@
 <launch>
 
   <!-- GDB functionality -->
+  <arg name="moveit" default="false"/>
   <arg name="debug" default="false" />
   <arg unless="$(arg debug)" name="launch_prefix" value="" />
   <arg     if="$(arg debug)" name="launch_prefix" value="gdb --ex run --args" />
 
-  <arg name="robot_ip"/>
+  <arg name="robot_ip" default="172.20.20.10"/>
   <arg name="limited" default="false"/>
   <arg name="min_payload"  default="0.0"/>
   <arg name="max_payload"  default="3.0"/>
@@ -16,7 +17,7 @@
   <arg name="tool_frame" default="$(arg prefix)tool0_controller" />
   <arg name="shutdown_on_disconnect" default="true" />
   <arg name="controllers" default="joint_state_controller force_torque_sensor_controller vel_based_pos_traj_controller"/>
-  <arg name="stopped_controllers" default="pos_based_pos_traj_controller joint_group_vel_controller"/>
+  <arg name="stopped_controllers" default="joint_group_vel_controller"/>
   <!-- robot model -->
   <include file="$(find ur_description)/launch/ur10_upload.launch">
     <arg name="limited" value="$(arg limited)"/>
@@ -50,5 +51,8 @@
 
   <!-- Convert joint states to /tf tranforms -->
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+  
+
+
 
 </launch>

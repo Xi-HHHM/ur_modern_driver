@@ -8,6 +8,9 @@
 #include "ur_modern_driver/ur/commander.h"
 #include "ur_modern_driver/ur/rt_state.h"
 
+#include <force_controllers/force_controller.h>
+#include <force_torque_sensor/force_torque_sensor_handle.h>
+
 class HardwareInterface
 {
 public:
@@ -22,6 +25,7 @@ public:
   {
   }
 };
+
 
 using hardware_interface::JointHandle;
 
@@ -80,4 +84,24 @@ public:
 
   typedef hardware_interface::PositionJointInterface parent_type;
   static const std::string INTERFACE_NAME;
+};
+
+class ForceTorqueInterface : public HardwareInterface, public force_torque_control::ForceTorqueControllerInterface
+{
+private:
+  TrajectoryFollower &follower_;
+  std::vector<hardware_interface::JointHandle> jh_;
+  std::array<double, 6> position_cmd_;
+
+public:
+  ForceTorqueInterface(TrajectoryFollower &follower,
+                                     std::vector<hardware_interface::JointHandle> &jh,
+                                     std::vector<std::string> &joint_names);
+  virtual bool write();
+  virtual void start();
+  virtual void stop();
+
+  typedef force_torque_control::ForceTorqueControllerInterface parent_type;
+  static const std::string INTERFACE_NAME;
+
 };

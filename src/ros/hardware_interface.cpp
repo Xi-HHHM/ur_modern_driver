@@ -69,8 +69,8 @@ PositionInterface::PositionInterface(TrajectoryFollower &follower,
   for (size_t i = 0; i < 6; i++)
   {
     registerHandle(JointHandle(js_interface.getHandle(joint_names[i]), &position_cmd_[i]));
-  }
-}
+  } 
+}  
 
 bool PositionInterface::write()
 {
@@ -83,6 +83,34 @@ void PositionInterface::start()
 }
 
 void PositionInterface::stop()
+{
+  follower_.stop();
+}
+
+const std::string ForceTorqueInterface::INTERFACE_NAME = "force_torque_control::ForceTorqueControllerInterface";
+ForceTorqueInterface::ForceTorqueInterface(TrajectoryFollower &follower,
+                                     std::vector<hardware_interface::JointHandle> &jh,
+                                     std::vector<std::string> &joint_names)
+  : follower_(follower)
+  , jh_(jh)
+{ 
+}
+
+bool ForceTorqueInterface::write()
+{ 
+  for (size_t i = 0; i < 6; i++)
+  {
+      position_cmd_[i] = jh_[i].getCommand();
+  }
+  return follower_.execute(position_cmd_);
+}
+
+void ForceTorqueInterface::start()
+{
+  follower_.start();
+}
+
+void ForceTorqueInterface::stop()
 {
   follower_.stop();
 }

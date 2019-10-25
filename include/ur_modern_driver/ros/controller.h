@@ -13,10 +13,8 @@
 #include "ur_modern_driver/ur/consumer.h"
 #include "ur_modern_driver/ur/rt_state.h"
 
-class ROSController : private hardware_interface::RobotHW, public URRTPacketConsumer, public Service
+class ROSController : protected hardware_interface::RobotHW, public URRTPacketConsumer, public Service
 {
-private:
-  ros::NodeHandle nh_;
   ros::Time lastUpdate_;
   controller_manager::ControllerManager controller_;
   bool robot_state_received_;
@@ -24,17 +22,31 @@ private:
   // state interfaces
   JointInterface joint_interface_;
   WrenchInterface wrench_interface_;
+
   // controller interfaces
   PositionInterface position_interface_;
   VelocityInterface velocity_interface_;
 
   // currently activated controller
   HardwareInterface* active_interface_;
-  // map of switchable controllers
-  std::map<std::string, HardwareInterface*> available_interfaces_;
-
+  
   std::atomic<bool> service_enabled_;
   std::atomic<uint32_t> service_cooldown_;
+
+protected:
+  ros::NodeHandle nh_;
+  std::vector<hardware_interface::JointHandle> jhs_;
+  void read(RTShared& state);
+  bool update();
+  bool write();
+  void reset();
+
+  hardware_interface::JointHandle getPosHandle(const std::string & name);
+  hardware_interface::JointHandle getVelHandle(const std::string & name);
+  std::vector<hardware_interface::JointHandle> getPosHandles(std::vector<string> joint_names);
+
+  // map of switchable controllers
+  std::map<std::string, HardwareInterface*> available_interfaces_;
 
   // helper functions to map interfaces
   template <typename T>
@@ -48,11 +60,6 @@ private:
     registerInterface(interface);
     available_interfaces_[T::INTERFACE_NAME] = interface;
   }
-
-  void read(RTShared& state);
-  bool update();
-  bool write();
-  void reset();
 
 public:
   ROSController(URCommander& commander, TrajectoryFollower& follower, std::vector<std::string>& joint_names,
@@ -94,4 +101,9 @@ public:
   virtual void onTimeout();
 
   virtual void onRobotStateChange(RobotState state);
+
+  
+/*
+  
+*/
 };

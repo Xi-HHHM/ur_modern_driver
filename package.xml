@@ -28,6 +28,8 @@
   <depend>ur_msgs</depend>
   <depend>tf</depend>
   <depend>std_srvs</depend>
+  <depend>force_controllers</depend>
+  <depend>force_torque_sensor</depend>
 
   <exec_depend>force_torque_sensor_controller</exec_depend>
   <exec_depend>joint_state_controller</exec_depend>

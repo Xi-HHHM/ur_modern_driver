@@ -8,6 +8,7 @@
 #include "ur_modern_driver/pipeline.h"
 #include "ur_modern_driver/ros/action_server.h"
 #include "ur_modern_driver/ros/controller.h"
+#include "ur_modern_driver/ros/controller_with_fts.h"
 #include "ur_modern_driver/ros/io_service.h"
 #include "ur_modern_driver/ros/lowbandwidth_trajectory_follower.h"
 #include "ur_modern_driver/ros/mb_publisher.h"
@@ -26,6 +27,7 @@
 static const std::string IP_ADDR_ARG("~robot_ip_address");
 static const std::string REVERSE_PORT_ARG("~reverse_port");
 static const std::string ROS_CONTROL_ARG("~use_ros_control");
+static const std::string EXTERN_FORCE_TORQUE_SENSOR_ARG("~use_extern_force_torque_sensor");
 static const std::string LOW_BANDWIDTH_TRAJECTORY_FOLLOWER("~use_lowbandwidth_trajectory_follower");
 static const std::string MAX_VEL_CHANGE_ARG("~max_vel_change");
 static const std::string PREFIX_ARG("~prefix");
@@ -55,6 +57,7 @@ public:
   double max_vel_change;
   int32_t reverse_port;
   bool use_ros_control;
+  bool use_extern_force_torque_sensor;
   bool use_lowbandwidth_trajectory_follower;
   bool shutdown_on_disconnect;
 };
@@ -98,6 +101,7 @@ bool parse_args(ProgArgs &args)
   ros::param::param(MAX_VEL_CHANGE_ARG, args.max_vel_change, 15.0);  // rad/s
   ros::param::param(MAX_VEL_CHANGE_ARG, args.max_velocity, 10.0);
   ros::param::param(ROS_CONTROL_ARG, args.use_ros_control, false);
+  ros::param::param(EXTERN_FORCE_TORQUE_SENSOR_ARG, args.use_extern_force_torque_sensor, false);
   ros::param::param(LOW_BANDWIDTH_TRAJECTORY_FOLLOWER, args.use_lowbandwidth_trajectory_follower, false);
   ros::param::param(PREFIX_ARG, args.prefix, std::string());
   ros::param::param(BASE_FRAME_ARG, args.base_frame, args.prefix + "base_link");
@@ -143,15 +147,27 @@ int main(int argc, char **argv)
 
   INotifier *notifier(nullptr);
   ROSController *controller(nullptr);
+  ROSController_with_fts *controller_with_fts(nullptr);
   ActionServer *action_server(nullptr);
   if (args.use_ros_control)
   {
     LOG_INFO("ROS control enabled");
     TrajectoryFollower *traj_follower =
         new TrajectoryFollower(*rt_commander, local_ip, args.reverse_port, factory.isVersion3());
-    controller = new ROSController(*rt_commander, *traj_follower, args.joint_names, args.max_vel_change, args.tcp_link);
-    rt_vec.push_back(controller);
-    services.push_back(controller);
+    if (args.use_extern_force_torque_sensor){
+      LOG_INFO("Extern force torque sensor enabled");
+      ROS_WARN_STREAM("JOINTS: " << DEFAULT_JOINTS[0] << " " << DEFAULT_JOINTS[1] << " " << DEFAULT_JOINTS[2] << " " << DEFAULT_JOINTS[3] << " " << DEFAULT_JOINTS[4] << " " << DEFAULT_JOINTS[5]);
+      ROS_WARN_STREAM("arg JOints: " << args.joint_names[0] << " " << args.joint_names[1] << " " << args.joint_names[2] << " " << args.joint_names[3] << " " << args.joint_names[4] << " " << args.joint_names[5]);
+      controller_with_fts = new ROSController_with_fts(*rt_commander, *traj_follower, args.joint_names, args.max_vel_change, args.tcp_link);
+      rt_vec.push_back(controller_with_fts);
+      services.push_back(controller_with_fts);
+    }
+    else
+    {
+      controller = new ROSController(*rt_commander, *traj_follower, args.joint_names, args.max_vel_change, args.tcp_link);
+      rt_vec.push_back(controller);
+      services.push_back(controller);
+    }
   }
   else
   {

@@ -22,6 +22,8 @@ find_package(catkin REQUIRED
     tf
     trajectory_msgs
     ur_msgs
+    force_controllers
+    force_torque_sensor
 )
 
 
@@ -41,6 +43,8 @@ catkin_package(
     sensor_msgs
     trajectory_msgs
     ur_msgs
+    force_controllers
+    force_torque_sensor
 )
 
 
@@ -73,6 +77,7 @@ include_directories(
 # Hardware Interface
 add_library(ur_hardware_interface
   src/ros/controller.cpp
+  src/ros/controller_with_fts.cpp
   src/ros/hardware_interface.cpp)
 target_link_libraries(ur_hardware_interface ${catkin_LIBRARIES})
 

@@ -13,6 +13,7 @@ ROSController::ROSController(URCommander& commander, TrajectoryFollower& followe
   registerInterface(&wrench_interface_);
   registerControllereInterface(&position_interface_);
   registerControllereInterface(&velocity_interface_);
+  jhs_ = getPosHandles(joint_names);
 }
 
 void ROSController::setupConsumer()
@@ -44,6 +45,7 @@ void ROSController::doSwitch(const std::list<hardware_interface::ControllerInfo>
 #endif
 
     auto ait = available_interfaces_.find(requested_interface);
+    ROS_WARN_STREAM("requested_interface: " << requested_interface);
 
     if (ait == available_interfaces_.end())
       continue;
@@ -59,12 +61,18 @@ void ROSController::doSwitch(const std::list<hardware_interface::ControllerInfo>
   }
 
   if (start_list.size() > 0)
+  {
+    ROS_WARN_STREAM("requested_interface: " << start_list.size());
+    //for(auto i=0; i< start_list.size(); i++)
+      //ROS_WARN_STREAM("requested_interface: " << start_list[i]);
     LOG_WARN("Failed to start interface!");
+  }
 }
 
 bool ROSController::write()
-{
+{ 
   if (active_interface_ == nullptr)
+    
     return true;
 
   return active_interface_->write();
@@ -94,7 +102,6 @@ bool ROSController::update()
   auto time = ros::Time::now();
   auto diff = time - lastUpdate_;
   lastUpdate_ = time;
-
   controller_.update(time, diff, !service_enabled_);
 
   // emergency stop and such should not kill the pipeline
@@ -129,3 +136,23 @@ void ROSController::onRobotStateChange(RobotState state)
   service_enabled_ = next;
   service_cooldown_ = 125;
 }
+
+hardware_interface::JointHandle ROSController::getPosHandle(const std::string & name) 
+{
+  return position_interface_.getHandle(name);
+}
+
+hardware_interface::JointHandle ROSController::getVelHandle(const std::string & name) 
+{
+  return position_interface_.getHandle(name);
+}
+
+std::vector<hardware_interface::JointHandle> ROSController::getPosHandles(std::vector<string> joint_names)
+{
+  std::vector<hardware_interface::JointHandle> jhs;
+  for (size_t i = 0; i < joint_names.size(); i++)
+      jhs.push_back(getPosHandle(joint_names[i]));
+  return jhs;
+}
+
+// TODOS: Veloicity Handles 
